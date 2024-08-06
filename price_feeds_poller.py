@@ -259,6 +259,7 @@ def handle_loop(
     
     reload_ts = int(time.time())
     low_balance_ts = int(time.time()) - 900
+    trace_status_ts = int(time.time()) - 900
     total_finalization_secs = web3_finalization_secs + witnet_resolution_secs
 
     captionMaxLength = 0
@@ -323,6 +324,12 @@ def handle_loop(
             else:
               estimate = math.ceil(time_left_hours / 10) * 10
               print(f"LOW FUNDS !!!: estimated less than {estimate} hours before running out of funds")
+
+        # Trace poller status every `config_reload_secs`
+        if (loop_ts - trace_status_ts) >= config_reload_secs:
+          trace_status_ts = loop_ts
+          print(f'{{"evmAccount":"{web3_from}","evmBalance":{round(balance / 10 ** 18, 3)},"uptimeHours":{math.floor(time_left_secs / 3600)}}}')
+          print()
 
         # On every iteration, read latest prices of all currently supported pfs
         latest_prices = feeds.functions.latestPrices(ids).call()
