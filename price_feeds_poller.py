@@ -487,7 +487,7 @@ def handle_loop(
                 if len(pf["secs"]) > 256:
                   del pf["secs"][0]
 
-              if triedUpdateAtLeastOnce == False:
+              if not triedUpdateAtLeastOnce:
                 triedUpdateAtLeastOnce = True
 
             else:
