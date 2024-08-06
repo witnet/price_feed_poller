@@ -257,9 +257,13 @@ def handle_loop(
 
     print(f"\nOk, so let's poll every {loop_interval_secs} seconds...")
     
-    reload_ts = int(time.time())
+    config_reload_ts = int(time.time())
+    last_balance = 0
+    last_income_balance = 0
+    last_income_ts = int(time.time())
     low_balance_ts = int(time.time()) - 900
     trace_status_ts = int(time.time()) - 900
+    start_ts = int(time.time()) 
     total_finalization_secs = web3_finalization_secs + witnet_resolution_secs
 
     captionMaxLength = 0
@@ -275,8 +279,8 @@ def handle_loop(
       
       try:
         # Reload configuration file every `config_reload_secs`...
-        if ids is None or (loop_ts - reload_ts) >= config_reload_secs:
-          reload_ts = loop_ts
+        if ids is None or (loop_ts - config_reload_ts) >= config_reload_secs:
+          config_reload_ts = loop_ts
           
           try:
             config, config_address = reload_config(config_file_path, network_name)
@@ -310,6 +314,7 @@ def handle_loop(
         # Check balance on every `config_reload_secs`
         balance = w3.eth.getBalance(web3_from)
         time_left_secs = time_to_die_secs(balance, pfs)
+        print(triedUpdateAtLeastOnce)
         timer_out = triedUpdateAtLeastOnce and (loop_ts - low_balance_ts) >= config_reload_secs
         if time_left_secs >= 0:
           # start warning every 900 seconds if estimated time before draining funds is less than 3 days
@@ -325,10 +330,20 @@ def handle_loop(
               estimate = math.ceil(time_left_hours / 10) * 10
               print(f"LOW FUNDS !!!: estimated less than {estimate} hours before running out of funds")
 
+        # Check for eventual refunds:
+        if balance > last_balance:
+          print(f"Poller's account ({web3_from}) increased balance to {round(balance / 10 ** 18, 3)} {web3_symbol}")
+          last_income_balance = balance
+          last_income_ts = loop_ts
+
         # Trace poller status every `config_reload_secs`
-        if (loop_ts - trace_status_ts) >= config_reload_secs:
+        elif (loop_ts - trace_status_ts) >= config_reload_secs:
           trace_status_ts = loop_ts
-          print(f'{{"evmAccount":"{web3_from}","evmBalance":{round(balance / 10 ** 18, 3)},"uptimeHours":{math.floor(time_left_secs / 3600)}}}')
+          hourlyExpenditure = round(((last_income_balance - balance) / (loop_ts - last_income_ts) * 3600) / 10 ** 18, 3)
+          uptimeLeftHours = math.floor(time_left_secs / 3600)
+          print(f'{{"evmAccount":"{web3_from}","evmBalance":{round(balance / 10 ** 18, 3)},"evmHourlyExpenditure":{hourlyExpenditure},"runningSecs":{loop_ts - start_ts},"uptimeLeftHours":{uptimeLeftHours}}}')
+        
+        last_balance = balance
 
         # On every iteration, read latest prices of all currently supported pfs
         latest_prices = feeds.functions.latestPrices(ids).call()
