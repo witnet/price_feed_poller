@@ -264,7 +264,8 @@ def handle_loop(
     captionMaxLength = 0
     footprint = None
     ids = None
-    pfs = None    
+    pfs = None
+    triedUpdateAtLeastOnce = False
     
     while True:
 
@@ -305,13 +306,13 @@ def handle_loop(
             # Otherwise revisit config parameters for each currently support price feed
             pfs = reload_pfs_params(pfs, config, network_name)
 
-        # Check balance on every `loop_interval_secs`
+        # Check balance on every `config_reload_secs`
         balance = w3.eth.getBalance(web3_from)
         time_left_secs = time_to_die_secs(balance, pfs)
-        timer_out = (loop_ts - low_balance_ts) >= config_reload_secs
+        timer_out = triedUpdateAtLeastOnce and (loop_ts - low_balance_ts) >= config_reload_secs
         if time_left_secs >= 0:
-          if time_left_secs <= 86400 * 3 and timer_out:
-            # start warning every 900 seconds if estimated time before draining funds is less than 3 days
+          # start warning every 900 seconds if estimated time before draining funds is less than 3 days
+          if time_left_secs <= 86400 * 3 and timer_out:  
             low_balance_ts = loop_ts
             time_left_hours = time_left_secs / 3600
             if time_left_hours < 1:
@@ -478,6 +479,9 @@ def handle_loop(
                 pf["secs"].append(elapsed_secs)                
                 if len(pf["secs"]) > 256:
                   del pf["secs"][0]
+
+              if triedUpdateAtLeastOnce == False:
+                triedUpdateAtLeastOnce = True
 
             else:
               secs_until_next_check = pf['cooldown'] - current_ts + pf["lastUpdateFailedTimestamp"] - total_finalization_secs
