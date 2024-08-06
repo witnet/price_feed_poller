@@ -329,7 +329,6 @@ def handle_loop(
         if (loop_ts - trace_status_ts) >= config_reload_secs:
           trace_status_ts = loop_ts
           print(f'{{"evmAccount":"{web3_from}","evmBalance":{round(balance / 10 ** 18, 3)},"uptimeHours":{math.floor(time_left_secs / 3600)}}}')
-          print()
 
         # On every iteration, read latest prices of all currently supported pfs
         latest_prices = feeds.functions.latestPrices(ids).call()
@@ -510,7 +509,7 @@ def main(args):
     load_dotenv()
 
     # Read config reload period
-    config_reload_secs = int(os.getenv('WPFP_CONFIG_RELEOAD_SECS') or 30)
+    config_reload_secs = int(os.getenv('WPFP_CONFIG_RELEOAD_SECS') or 900)
 
     # Read network parameters from environment:
     network_name = os.getenv('WPFP_NETWORK_NAME')
