@@ -84,7 +84,7 @@ def handle_requestUpdate(
         web3_provider_waiting_secs,
         web3_provider_polling_secs
       )
-      total_fee = balance - w3.eth.getBalance(web3_from)
+      total_fee = fee + receipt.get("gasUsed") * web3_gas_price
       print( " > Tx. block num.:", "{:,}".format(receipt.get("blockNumber")))
       print( " > Tx. total gas :", "{:,}".format(receipt.get("gasUsed")))
       print( " > Tx. total cost:", round(total_fee / 10 ** 18, 5), web3_symbol)
