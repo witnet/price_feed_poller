@@ -270,7 +270,7 @@ def handle_loop(
     footprint = None
     ids = None
     pfs = None
-    triedUpdateAtLeastOnce = False
+    atLestOneUpdateSuccessfullyRequested = False
     
     while True:
 
@@ -314,8 +314,7 @@ def handle_loop(
         # Check balance on every `config_reload_secs`
         balance = w3.eth.getBalance(web3_from)
         time_left_secs = time_to_die_secs(balance, pfs)
-        print(triedUpdateAtLeastOnce)
-        timer_out = triedUpdateAtLeastOnce and (loop_ts - low_balance_ts) >= config_reload_secs
+        timer_out = atLestOneUpdateSuccessfullyRequested and (loop_ts - low_balance_ts) >= config_reload_secs
         if time_left_secs >= 0:
           # start warning every 900 seconds if estimated time before draining funds is less than 3 days
           if time_left_secs <= 86400 * 3 and timer_out:  
@@ -501,8 +500,8 @@ def handle_loop(
                 if len(pf["secs"]) > 256:
                   del pf["secs"][0]
 
-              if not triedUpdateAtLeastOnce:
-                triedUpdateAtLeastOnce = True
+                if not atLestOneUpdateSuccessfullyRequested:
+                  atLestOneUpdateSuccessfullyRequested = True
 
             else:
               secs_until_next_check = pf['cooldown'] - current_ts + pf["lastUpdateFailedTimestamp"] - total_finalization_secs
