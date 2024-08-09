@@ -340,7 +340,7 @@ def handle_loop(
           trace_status_ts = loop_ts
           hourlyExpenditure = round(((last_income_balance - balance) / (loop_ts - last_income_ts) * 3600) / 10 ** 18, 3)
           uptimeLeftHours = math.floor(time_left_secs / 3600)
-          print(f'{{"evmAccount":"{web3_from}","evmBalance":{round(balance / 10 ** 18, 3)},"evmHourlyExpenditure":{hourlyExpenditure},"runningSecs":{loop_ts - start_ts},"uptimeLeftHours":{uptimeLeftHours}}}')
+          print(f'{{"evmAccount":"{web3_from}","evmBalance":{round(balance / 10 ** 18, 3)},"evmGasToken":"{web3_symbol}","evmHourlyExpenditure":{hourlyExpenditure},"runningSecs":{loop_ts - start_ts},"uptimeLeftHours":{uptimeLeftHours}}}')
         
         last_balance = balance
 
