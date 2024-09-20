@@ -132,7 +132,7 @@ def search_pfs_fees_secs(pfs, pf_id):
 def reload_pfs(contract, old_pfs, config, network_name):    
   captionMaxLength = 0
   ids = []
-  pfs = []    
+  pfs = []
 
   if old_pfs is None:
     old_pfs = []
@@ -532,7 +532,7 @@ def main(args):
     load_dotenv()
 
     # Read config reload period
-    config_reload_secs = int(os.getenv('WPFP_CONFIG_RELEOAD_SECS') or 900)
+    config_reload_secs = int(os.getenv('WPFP_CONFIG_RELOAD_SECS') or 900)
 
     # Read network parameters from environment:
     network_name = os.getenv('WPFP_NETWORK_NAME')
