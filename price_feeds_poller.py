@@ -123,13 +123,21 @@ def reload_config(config_file_path, network_name):
       exit(1)
     return config, network_config.get('address', config['contracts']['2.0']['address'])
 
-def reload_pfs(feeds, config, network_name):
-    
+def search_pfs_fees_secs(pfs, pf_id):
+  for index in range(len(pfs)):
+    if pfs[index]["id"] == pf_id:
+      return pfs[index]["fees"], pfs[index]["secs"]
+  return [], []
+
+def reload_pfs(contract, old_pfs, config, network_name):    
   captionMaxLength = 0
   ids = []
   pfs = []    
 
-  supports = feeds.functions.supportedFeeds().call()
+  if old_pfs is None:
+    old_pfs = []
+
+  supports = contract.functions.supportedFeeds().call()
   for index in range(len(supports[0])):
     caption = supports[1][index]
     pf_id = supports[0][index].hex()
@@ -143,10 +151,11 @@ def reload_pfs(feeds, config, network_name):
       heartbeat = int(get_price_feed_config(config, network_name, caption, "maxSecsBetweenUpdates", 86400))
       for attempt in range(5):
         try:    
-          bytecode = feeds.functions.lookupWitnetBytecode(pf_id).call()  
-          latest_price = feeds.functions.latestPrice(pf_id).call()
-          latest_update_query_id = feeds.functions.latestUpdateQueryId(pf_id).call()
+          bytecode = contract.functions.lookupWitnetBytecode(pf_id).call()  
+          latest_price = contract.functions.latestPrice(pf_id).call()
+          latest_update_query_id = contract.functions.latestUpdateQueryId(pf_id).call()
           pending_update = latest_price[3] == 1
+          fees, secs = search_pfs_fees_secs(old_pfs, pf_id)
           ids.append(pf_id)
           pfs.append({
             "id": pf_id,
@@ -166,8 +175,8 @@ def reload_pfs(feeds, config, network_name):
             "lastRevertedTx": "",
             "lastUpdateFailed": False,
             "lastUpdateFailedTimestamp": int(time.time()),
-            "fees": [],
-            "secs": []
+            "fees": fees,
+            "secs": secs
           })
           print(f"  => ID4         : {pf_id}")
           print(f"  => RAD hash    : {rad_hash}")
@@ -198,7 +207,7 @@ def reload_pfs(feeds, config, network_name):
         captionMaxLength = len(caption)
     else:
       print(f"  => ID4         : {pf_id}")
-      print(f"  => Dependencies: {feeds.functions.lookupPriceSolver(pf_id).call()[1]}")
+      print(f"  => Dependencies: {contract.functions.lookupPriceSolver(pf_id).call()[1]}")
       print()
   
   return ids, pfs, captionMaxLength
@@ -243,16 +252,16 @@ def handle_loop(
   ):
     config, config_address = reload_config(config_file_path, network_name)
     
-    feeds = feeds_contract(w3, web3_address or config_address)
-    if feeds.address is None:
+    contract = feeds_contract(w3, web3_address or config_address)
+    if contract.address is None:
       print("Fatal: invalid WitnetPriceFeeds address read from {feeds_config_file_path}")
       exit(1)
 
     try:
-      print(f"Using WitnetOracle at {feeds.functions.witnet().call()}")
-      print(f"Using WitnetPriceFeeds at {feeds.address}")
+      print(f"Using WitnetOracle at {contract.functions.witnet().call()}")
+      print(f"Using WitnetPriceFeeds at {contract.address}")
     except Exception as ex:
-      print(f"Uncompliant WitnetPriceFeeds at {feeds.address}")
+      print(f"Uncompliant WitnetPriceFeeds at {contract.address}")
       exit(1)
 
     print(f"\nOk, so let's poll every {loop_interval_secs} seconds...")
@@ -289,23 +298,23 @@ def handle_loop(
             continue
           
           if web3_address is None:
-            if config_address != feeds.address:
+            if config_address != contract.address:
               print(f"Trying to change WitnetPriceFeeds address...")
               try:
-                new_feeds = feeds_contract(w3, config_address)
-                print(f"=> Using WitnetOracle at {new_feeds.functions.witnet().call()}")
-                print(f"=> Using WitnetPriceFeeds at {new_feeds.address}")
-                feeds = new_feeds
+                new_contract = feeds_contract(w3, config_address)
+                print(f"=> Using WitnetOracle at {new_contract.functions.witnet().call()}")
+                print(f"=> Using WitnetPriceFeeds at {new_contract.address}")
+                contract = new_contract
               except Exception as ex:
                 print(f"=> Exception: {ex}")
 
-          new_footprint = feeds.functions.footprint().call().hex()
+          new_footprint = contract.functions.footprint().call().hex()
           if footprint is None or new_footprint != footprint:
             # Reload pfs and ids if the WPF contract's footprint changed 
             if footprint is not None:
-                print(f"Reloading price feeds due to a footprint change detected on WitnetPriceFeeds at {feeds.address}...\n")            
+                print(f"Reloading price feeds due to a footprint change detected on WitnetPriceFeeds at {contract.address}...\n")            
             footprint = new_footprint
-            ids, pfs, captionMaxLength = reload_pfs(feeds, config, network_name)
+            ids, pfs, captionMaxLength = reload_pfs(contract, pfs, config, network_name)
             
           else:
             # Otherwise revisit config parameters for each currently support price feed
@@ -345,7 +354,7 @@ def handle_loop(
         last_balance = balance
 
         # On every iteration, read latest prices of all currently supported pfs
-        latest_prices = feeds.functions.latestPrices(ids).call()
+        latest_prices = contract.functions.latestPrices(ids).call()
       
       except Exception as ex:
         print(f"Main loop exception: {unscape(ex)}")
@@ -405,8 +414,8 @@ def handle_loop(
             elif status == 3:
               # a finalized errored result is detected
               pf["pendingUpdate"] = False
-              latest_response = feeds.functions.latestUpdateResponse(id).call()
-              latest_error = feeds.functions.latestUpdateResultError(id).call()
+              latest_response = contract.functions.latestUpdateResponse(id).call()
+              latest_error = contract.functions.latestUpdateResultError(id).call()
               pf["lastUpdateFailed"] = True
               pf["lastUpdateFailedTimestamp"] = current_ts
               print(f"{caption} >< drTallyTxHash: {latest_response[3].hex()} => \"{str(latest_error[1])}\"")
@@ -463,7 +472,7 @@ def handle_loop(
               result = handle_requestUpdate(
                 w3,
                 csv_filename,
-                feeds,
+                contract,
                 id,
                 pf["radHash"],
                 pf["latestUpdateQueryId"],
@@ -510,7 +519,7 @@ def handle_loop(
         
         # Capture exceptions while reading state from contract
         except Exception as ex:
-          print(f"{caption} .. Exception when getting state from {feeds.address}: {unscape(ex)}")
+          print(f"{caption} .. Exception when getting state from {contract.address}: {unscape(ex)}")
       
       # Sleep just enough between loops
       preemptive_secs = loop_interval_secs - int(time.time()) + loop_ts
