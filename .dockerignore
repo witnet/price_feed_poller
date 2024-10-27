@@ -1,6 +1,7 @@
 .bin
 .env
 .git
+.github
 .include
 .lib
 .__pycache__
