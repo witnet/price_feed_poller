@@ -14,9 +14,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
       - name: Run docker-build local action
-        uses: ./.github/actions/docker-build
-        with:
-          tag: witnet/price-feeds-poller
+        run: docker build -t witnet/price-feeds-poller -f docker/Dockerfile .
 
   docker-run:
     name: Try some commands in Docker image
