@@ -8,21 +8,17 @@ on:
 
 jobs:
   docker-build:
-    name: Build Docker image
+    name: Build & Validate Image
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
       - name: Run docker-build local action
         run: docker build -t witnet/price-feeds-poller -f docker/Dockerfile .
 
-  docker-run:
-    name: Try some commands in Docker image
-    runs-on: ubuntu-latest
-    needs: ["docker-build"]
-    steps:
       - name: Try to run main command
         run: docker run witnet/price-feeds-poller -h
+
       - name: Try to run witnet-toolkit
         run: docker run --entrypoint npx witnet/price-feeds-poller witnet-toolkit --version
-
